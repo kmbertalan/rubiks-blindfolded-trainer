@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const Cube = require("cubejs");
 const Scrambo = require("scrambo");
 const readline = require("readline/promises");
@@ -5,22 +7,48 @@ const { stdin: input, stdout: output } = require("process");
 const { edgeMoves, cornerMoves, parity } = require("./constants");
 
 const scrambler = new Scrambo();
+const scrambleFile = path.join(__dirname, "last-scramble.json");
+
+function saveScramble(scramble) {
+  fs.writeFileSync(scrambleFile, JSON.stringify({ scramble }), "utf-8");
+}
+
+function loadScramble() {
+  if (fs.existsSync(scrambleFile)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(scrambleFile, "utf-8"));
+      return data.scramble || null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
 
 async function main() {
   const cube = new Cube();
   const rl = readline.createInterface({ input, output });
 
   try {
+    const lastScramble = loadScramble();
     const inputScramble = await rl.question(
-      "Enter your scramble, or hit enter to generate a new one: "
+      `Enter your scramble (leave empty to generate${
+        lastScramble ? ", or type 'last' to reuse last scramble" : ""
+      }): `
     );
 
-    const finalScramble = inputScramble.trim()
-      ? inputScramble.trim()
-      : scrambler.type("333").length(20).get()[0];
+    let finalScramble;
+    if (inputScramble.trim().toLowerCase() === "last" && lastScramble) {
+      finalScramble = lastScramble;
+    } else if (inputScramble.trim()) {
+      finalScramble = inputScramble.trim();
+    } else {
+      finalScramble = scrambler.type("333").length(20).get()[0];
+    }
 
     console.log("Your scramble:", finalScramble);
     cube.move(finalScramble);
+    saveScramble(finalScramble);
 
     const convertedMoveList = [];
 
